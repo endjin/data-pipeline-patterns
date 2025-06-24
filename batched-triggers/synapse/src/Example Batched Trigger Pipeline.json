@@ -1,0 +1,93 @@
+{
+    "name": "Example Batched Trigger Pipeline",
+    "properties": {
+        "activities": [
+            {
+                "name": "Orchestrate Batched Triggers",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "Batched Trigger Orchestrator",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "DelayInSeconds": 20,
+                        "CallingPipelineTriggerTime": {
+                            "value": "@pipeline().TriggerTime",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Check if should continue execution",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "Orchestrate Batched Triggers",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@equals(activity('Orchestrate Batched Triggers').output.pipelineReturnValue.ContinueExecution, true)",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "Cancel execution",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "variableName": "pipelineReturnValue",
+                                "value": [
+                                    {
+                                        "key": "Result",
+                                        "value": {
+                                            "type": "String",
+                                            "content": "Cancelling execution due to batched trigger orchestration"
+                                        }
+                                    }
+                                ],
+                                "setSystemVariable": true
+                            }
+                        }
+                    ],
+                    "ifTrueActivities": [
+                        {
+                            "name": "Do work",
+                            "type": "Wait",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "waitTimeInSeconds": 30
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "concurrency": 1,
+        "variables": {
+            "QueuedRunCount": {
+                "type": "Integer",
+                "defaultValue": 0
+            }
+        },
+        "annotations": []
+    }
+}
