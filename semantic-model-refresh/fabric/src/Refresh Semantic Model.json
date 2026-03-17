@@ -1,0 +1,144 @@
+{
+    "name": "Refresh Semantic Model",
+    "objectId": "21c63f28-ca1d-4ffc-9dc4-6e763ec7e99c",
+    "properties": {
+        "activities": [
+            {
+                "name": "Until No Refresh Running",
+                "type": "Until",
+                "dependsOn": [
+                    {
+                        "activity": "Set Refresh Status to Unknown",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@not(equals('Unknown', variables('Refresh Status')))",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "Wait 10 Seconds",
+                            "type": "Wait",
+                            "dependsOn": [
+                                {
+                                    "activity": "Set Refresh Status",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "typeProperties": {
+                                "waitTimeInSeconds": 1
+                            }
+                        },
+                        {
+                            "name": "Set Refresh Status",
+                            "type": "SetVariable",
+                            "dependsOn": [
+                                {
+                                    "activity": "Check Refresh Status",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "variableName": "Refresh Status",
+                                "value": {
+                                    "value": "@activity('Check Refresh Status').output.value[0].status",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Check Refresh Status",
+                            "type": "WebActivity",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "method": "GET",
+                                "relativeUrl": "/v1.0/myorg/groups/@{pipeline().parameters.WorkspaceId}/datasets/@{pipeline().parameters.DatasetId}/refreshes?$top=1"
+                            },
+                            "externalReferences": {
+                                "connection": ""
+                            }
+                        }
+                    ],
+                    "timeout": "0.12:00:00"
+                }
+            },
+            {
+                "name": "Semantic model refresh",
+                "type": "PBISemanticModelRefresh",
+                "dependsOn": [
+                    {
+                        "activity": "Until No Refresh Running",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "method": "post",
+                    "waitOnCompletion": true,
+                    "commitMode": "Transactional",
+                    "operationType": "SemanticModelRefresh",
+                    "groupId": "@{pipeline().parameters.WorkspaceId}",
+                    "datasetId": "@{pipeline().parameters.DatasetId}"
+                },
+                "externalReferences": {
+                    "connection": ""
+                }
+            },
+            {
+                "name": "Set Refresh Status to Unknown",
+                "type": "SetVariable",
+                "dependsOn": [],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "variableName": "Refresh Status",
+                    "value": "Unknown"
+                }
+            }
+        ],
+        "parameters": {
+            "WorkspaceId": {
+                "type": "string"
+            },
+            "DatasetId": {
+                "type": "string"
+            }
+        },
+        "variables": {
+            "Refresh Status": {
+                "type": "String"
+            }
+        },
+        "lastModifiedByObjectId": "",
+        "lastPublishTime": "2025-06-30T15:31:52Z"
+    }
+}
